@@ -366,16 +366,27 @@ const ANIMALS = [
   {id:'crocodilo', name:'Crocodilo', emoji:'🐊', big5:false, pts:25},
   {id:'macaco', name:'Macaco-vervet', emoji:'🐒', big5:false, pts:10},
   {id:'chacal', name:'Chacal', emoji:'🐺', big5:false, pts:25},
-  {id:'tartaruga', name:'Jabuti', emoji:'🐢', big5:false, pts:10},
   {id:'avestruzinho', name:'Pintada (Guinea fowl)', emoji:'🦃', big5:false, pts:10},
+  {id:'rinoceronte_negro', name:'Rinoceronte-negro', emoji:'🦏', big5:true, pts:50},
+  {id:'mabeco', name:'Mabeco (Cão-selvagem)', emoji:'🦮', big5:false, pts:25},
+  {id:'guepardo', name:'Guepardo (Chita)', emoji:'🐆', big5:false, pts:25},
+  {id:'waterbuck', name:'Waterbuck', emoji:'🦬', big5:false, pts:25},
+  {id:'elande', name:'Elande', emoji:'🐂', big5:false, pts:25},
+  {id:'sable', name:'Antílope Sable', emoji:'🦌', big5:false, pts:25},
+  {id:'orix', name:'Órix (Gemsbok)', emoji:'🐐', big5:false, pts:25},
+  {id:'serval', name:'Serval', emoji:'🐈', big5:false, pts:25},
+  {id:'caracal', name:'Caracal', emoji:'🐈‍⬛', big5:false, pts:25},
+  {id:'coruja', name:'Coruja', emoji:'🦉', big5:false, pts:25},
+  {id:'rhebok', name:'Rhebok', emoji:'🦌', big5:false, pts:25},
 ];
 
 const GUIDE_INFO = {
   leao: { en:'Lion', feat:'Maior felino do safári. Macho tem juba grande; fêmeas caçam em grupo (matilha/"pride"). Costuma ficar deitado à sombra durante o dia.', confuse:'Não confundir com <b>leopardo</b> (menor, pintado, sozinho em árvores).' },
   elefante: { en:'Elephant', feat:'O maior animal terrestre. Orelhas grandes, tromba longa, anda em grupos liderados por uma fêmea mais velha (matriarca).', confuse:'' },
-  rinoceronte: { en:'Rhino / Rhinoceros', feat:'Pele grossa e cinza, um ou dois chifres no focinho. No Pilanesberg pode ser de boca quadrada (pasto) ou boca pontuda (folhas).', confuse:'<b>Branco</b> (boca larga, pasta no chão) x <b>Negro</b> (boca em bico, come folhas).' },
+  rinoceronte: { en:'White Rhino', feat:'Pele grossa e cinza, dois chifres no focinho. Boca larga e quadrada (pasta capim no chão). É o mais comum dos dois tipos no Pilanesberg.', confuse:'<b>Branco</b> (boca larga, pasta no chão) x <b>Negro</b> (boca em bico, come folhas de arbusto).' },
+  rinoceronte_negro: { en:'Black Rhino', feat:'Parecido com o branco, mas a boca é em formato de bico/gancho (pra arrancar folhas de arbustos). Mais raro, mais arisco e costuma andar sozinho.', confuse:'<b>Negro</b> (boca em bico) x <b>Branco</b> (boca larga e quadrada).' },
   bufalo: { en:'Cape Buffalo', feat:'Bovino preto/marrom escuro, chifres grossos e curvados em formato de "capacete". Anda em manadas grandes, considerado um dos mais perigosos.', confuse:'Não confundir com <b>gnu</b> (mais magro, chifres em forma de C).' },
-  leopardo: { en:'Leopard', feat:'Pelagem amarelo-dourada com manchas em forma de roseta. Muito discreto, costuma descansar em árvores. Difícil de ver!', confuse:'<b>Leopardo</b> = manchas tipo roseta e solitário. <b>Chita (cheetah)</b> = manchas sólidas, corpo fino — raro no Pilanesberg.' },
+  leopardo: { en:'Leopard', feat:'Pelagem amarelo-dourada com manchas em forma de roseta. Muito discreto, costuma descansar em árvores. Difícil de ver!', confuse:'<b>Leopardo</b> = manchas tipo roseta e solitário. <b>Guepardo</b> = manchas sólidas (pontos cheios), corpo bem mais fino e alto, caça correndo de dia.' },
   girafa: { en:'Giraffe', feat:'Pescoço enorme, manchas em formato de mosaico. O animal mais alto do mundo.', confuse:'' },
   zebra: { en:'Zebra', feat:'Listras pretas e brancas únicas em cada indivíduo (como digital). Anda em grupos.', confuse:'' },
   hipopotamo: { en:'Hippo / Hippopotamus', feat:'Corpo enorme e arredondado, geralmente só a cabeça aparece fora da água em lagoas e represas. Perigoso fora d\'água.', confuse:'' },
@@ -389,8 +400,17 @@ const GUIDE_INFO = {
   crocodilo: { en:'Nile Crocodile', feat:'Fica parado nas margens dos rios e lagoas, às vezes só os olhos e o focinho aparecem na água.', confuse:'' },
   macaco: { en:'Vervet Monkey', feat:'Macaco pequeno, pelagem acinzentada, rosto e mãos pretos. Costuma ficar perto de acampamentos e árvores.', confuse:'' },
   chacal: { en:'Black-backed Jackal', feat:'Parece uma raposa/cachorro pequeno, com uma faixa preta nas costas. Costuma andar sozinho ou em par, principalmente ao amanhecer/anoitecer.', confuse:'Não confundir com <b>hiena</b> (bem maior).' },
-  tartaruga: { en:'Leopard Tortoise', feat:'Casco com padrão de manchas tipo leopardo, anda devagar pelo chão, perto de arbustos.', confuse:'' },
   avestruzinho: { en:'Guinea Fowl', feat:'Ave pequena, corpo cinza-escuro com pintinhas brancas, cabeça pequena e azulada. Anda em bando fazendo bastante barulho.', confuse:'' },
+  mabeco: { en:'African Wild Dog', feat:'Pelagem manchada de marrom, preto, branco e amarelo (cada um tem um padrão único). Orelhas grandes e arredondadas. Caça em matilha, são ótimos caçadores. O Pilanesberg é conhecido por ter esses cães!', confuse:'Não confundir com <b>chacal</b> (bem menor) ou <b>hiena</b> (sem manchas grandes coloridas).' },
+  guepardo: { en:'Cheetah', feat:'Corpo bem fino e alto, manchas redondas sólidas, "lágrimas" pretas do olho até a boca. É o animal mais rápido do mundo.', confuse:'<b>Guepardo</b> = manchas cheias, corpo fino, lágrimas no rosto. <b>Leopardo</b> = manchas em roseta, corpo mais robusto, fica em árvores.' },
+  waterbuck: { en:'Waterbuck', feat:'Antílope grande e robusto, pelagem acinzentada/marrom, com um anel branco bem visível em volta da traseira (parece um alvo). Fica sempre perto de água.', confuse:'' },
+  elande: { en:'Eland', feat:'O maior antílope do mundo, corpo grande tipo boi, chifres retos e finos em espiral. Costuma andar em pequenos grupos.', confuse:'' },
+  sable: { en:'Sable Antelope', feat:'Pelagem escura (quase preta nos machos adultos), barriga branca, chifres longos e curvados pra trás em arco. Bem elegante e raro de ver.', confuse:'' },
+  orix: { en:'Gemsbok / Oryx', feat:'Antílope cinza-claro com marcas pretas no rosto tipo máscara, chifres bem longos e retos. Mais comum em áreas secas — pode ser difícil de encontrar no Pilanesberg.', confuse:'' },
+  serval: { en:'Serval', feat:'Gato selvagem de porte médio, pernas bem longas, orelhas grandes, pelagem com manchas pretas. Costuma caçar em áreas de capim alto, mais ativo ao amanhecer/anoitecer — difícil de ver.', confuse:'' },
+  caracal: { en:'Caracal', feat:'Gato selvagem cor de areia, sem manchas, com tufos de pelo pretos nas pontas das orelhas (bem característico). Muito discreto e principalmente noturno.', confuse:'' },
+  coruja: { en:'Owl', feat:'Ave de rapina noturna, olhos grandes e redondos voltados pra frente, voo silencioso. Mais fácil de ouvir do que ver.', confuse:'' },
+  rhebok: { en:'Rhebok (Grey Rhebok)', feat:'Antílope pequeno e cinza-acastanhado, pelagem com aspecto "felpudo", chifres finos e retos (só nos machos). Vive em encostas rochosas e gramados, costuma fugir em saltos quando assustado.', confuse:'' },
 };
 
 const STORAGE_KEY = 'safariHunt_bento_v1';
@@ -499,20 +519,20 @@ function totalPoints(){
   }, 0);
 }
 function levelFor(points){
-  if(points >= 520) return 6;
-  if(points >= 420) return 5;
-  if(points >= 300) return 4;
-  if(points >= 180) return 3;
-  if(points >= 80) return 2;
+  if(points >= 760) return 6;
+  if(points >= 620) return 5;
+  if(points >= 440) return 4;
+  if(points >= 260) return 3;
+  if(points >= 120) return 2;
   return 1;
 }
 const LEVELS = [
   {lvl:1, min:0,   name:'Aprendiz de Ranger',     medal:'🥉'},
-  {lvl:2, min:80,  name:'Explorador',             medal:'🥈'},
-  {lvl:3, min:180, name:'Rastreador',              medal:'🥇'},
-  {lvl:4, min:300, name:'Guia de Safári',          medal:'🏆'},
-  {lvl:5, min:420, name:'Lenda do Pilanesberg',    medal:'👑'},
-  {lvl:6, min:520, name:'Rei do Safári',           medal:'🌟'},
+  {lvl:2, min:120, name:'Explorador',             medal:'🥈'},
+  {lvl:3, min:260, name:'Rastreador',              medal:'🥇'},
+  {lvl:4, min:440, name:'Guia de Safári',          medal:'🏆'},
+  {lvl:5, min:620, name:'Lenda do Pilanesberg',    medal:'👑'},
+  {lvl:6, min:760, name:'Rei do Safári',           medal:'🌟'},
 ];
 const LEVEL_NAMES = {1:'Aprendiz de Ranger', 2:'Explorador', 3:'Rastreador', 4:'Guia de Safári', 5:'Lenda do Pilanesberg', 6:'Rei do Safári'};
 
