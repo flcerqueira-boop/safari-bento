@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Caça ao Big Five 🦁</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C2531C">
+<style>
+  :root{
+    --sunset-1:#F2A65A;
+    --sunset-2:#C2531C;
+    --dusk:#2B1B33;
+    --savanna:#3F6B2D;
+    --gold:#F4C04F;
+    --cream:#FBF3E3;
+    --card:#3A2740;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  body{
+    margin:0; min-height:100vh;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(180deg, var(--sunset-1) 0%, var(--sunset-2) 35%, var(--dusk) 100%);
+    background-attachment: fixed;
+    color: var(--cream);
+    padding-bottom: 40px;
+  }
+  header{
+    text-align:center;
+    padding: 28px 16px 16px;
+  }
+  header h1{
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  header p{ margin:0; opacity:0.85; font-size:0.9rem; }
+
+  .stats{
+    display:flex; justify-content:center; gap:14px;
+    margin: 16px auto 8px; flex-wrap:wrap; padding: 0 16px;
+  }
+  .stat{
+    background: rgba(0,0,0,0.25);
+    border-radius: 14px;
+    padding: 10px 16px;
+    text-align:center;
+    min-width: 84px;
+    backdrop-filter: blur(2px);
+  }
+  .stat .val{ font-size:1.3rem; font-weight:700; color: var(--gold); }
+  .stat .lbl{ font-size:0.65rem; text-transform:uppercase; opacity:0.8; letter-spacing:0.06em; }
+
+  .progress-wrap{
+    max-width: 480px; margin: 14px auto; padding: 0 20px;
+  }
+  .progress-bar{
+    height: 10px; border-radius: 6px; background: rgba(0,0,0,0.3);
+    overflow:hidden; position:relative;
+  }
+  .progress-fill{
+    height:100%; background: linear-gradient(90deg, var(--gold), #ffe08a);
+    border-radius:6px; transition: width 0.5s ease;
+  }
+  .progress-label{ text-align:center; font-size:0.75rem; margin-top:6px; opacity:0.85;}
+
+  .grid{
+    max-width: 560px; margin: 18px auto; padding: 0 14px;
+    display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .animal-card{
+    background: var(--card);
+    border-radius: 16px;
+    padding: 10px 6px 8px;
+    text-align:center;
+    border: 2px solid rgba(244,192,79,0.15);
+    position:relative;
+    transition: transform 0.15s ease;
+    cursor:pointer;
+  }
+  .animal-card:active{ transform: scale(0.95); }
+  .animal-card.found{
+    border-color: var(--gold);
+    background: linear-gradient(160deg, #4a3350, #3A2740);
+  }
+  .animal-card .emoji{ font-size: 2.1rem; display:block; filter: saturate(0.6) brightness(0.75); }
+  .animal-card.found .emoji{ filter:none; }
+  .animal-card .name{ font-size:0.68rem; margin-top:4px; line-height:1.15; min-height: 26px; display:flex; align-items:center; justify-content:center; }
+  .animal-card .pts{ font-size:0.6rem; color: var(--gold); opacity:0.9; margin-top:2px;}
+  .badge-bigfive{
+    position:absolute; top:4px; right:4px; font-size:0.55rem;
+    background: var(--sunset-2); color:white; padding: 1px 5px; border-radius:8px;
+    font-weight:700;
+  }
+  .checkmark{
+    position:absolute; top:4px; left:6px; font-size:0.8rem;
+  }
+
+  .section-title{
+    max-width:560px; margin: 24px auto 8px; padding: 0 18px;
+    font-size:0.85rem; text-transform:uppercase; letter-spacing:0.08em;
+    opacity:0.8; display:flex; align-items:center; gap:8px;
+  }
+  .section-title::after{ content:""; flex:1; height:1px; background: rgba(255,255,255,0.2); }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(0,0,0,0.7);
+    display:none; align-items:center; justify-content:center; z-index: 50;
+    padding: 20px;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal{
+    background: var(--cream); color: var(--dusk);
+    border-radius: 20px; max-width: 360px; width:100%;
+    padding: 22px 20px 20px; text-align:center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  }
+  .modal .emoji-big{ font-size: 3.5rem; }
+  .modal h2{ margin: 6px 0 2px; font-size:1.2rem; }
+  .modal p.desc{ font-size:0.85rem; opacity:0.75; margin: 0 0 14px; }
+  .photo-preview{
+    width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin: 8px 0;
+    display:none;
+  }
+  .photo-preview.show{ display:block; }
+  .btn{
+    display:block; width:100%; padding: 13px; border:none; border-radius: 12px;
+    font-size: 0.95rem; font-weight:700; margin-top:10px; cursor:pointer;
+  }
+  .btn-primary{ background: var(--sunset-2); color:white; }
+  .btn-secondary{ background: rgba(0,0,0,0.08); color: var(--dusk); }
+  .btn-skip{ background:none; color: rgba(43,27,51,0.5); font-weight:500; font-size:0.8rem; padding:8px; }
+
+  /* Toast / celebration */
+  .celebrate{
+    position:fixed; inset:0; pointer-events:none; z-index: 60;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .celebrate .burst{
+    font-size: 5rem; animation: pop 0.9s ease forwards;
+  }
+  @keyframes pop{
+    0%{ transform: scale(0.3); opacity:0; }
+    30%{ transform: scale(1.2); opacity:1; }
+    60%{ transform: scale(1); }
+    100%{ transform: scale(1.4); opacity:0; }
+  }
+
+  .tabs{
+    max-width: 480px; margin: 6px auto 0; padding: 0 20px;
+    display:flex; gap:8px;
+  }
+  .tab-btn{
+    flex:1; padding: 10px 8px; border-radius: 12px; border: none;
+    background: rgba(0,0,0,0.2); color: var(--cream); font-size:0.85rem; font-weight:600;
+    cursor:pointer;
+  }
+  .tab-btn.active{ background: var(--gold); color: var(--dusk); }
+
+  .guide-list{
+    max-width: 560px; margin: 16px auto; padding: 0 16px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .guide-card{
+    background: var(--card); border-radius: 16px; padding: 14px 16px;
+    border: 1px solid rgba(244,192,79,0.15);
+  }
+  .guide-card .g-head{ display:flex; align-items:center; gap:10px; }
+  .guide-card .g-emoji{ font-size: 2rem; }
+  .guide-card .g-name-pt{ font-weight:700; font-size:1rem; }
+  .guide-card .g-name-en{ font-size:0.72rem; opacity:0.65; font-style:italic; }
+  .guide-card .g-feat{ font-size:0.8rem; margin-top:8px; line-height:1.45; opacity:0.92; }
+  .guide-card .g-confuse{ font-size:0.74rem; margin-top:6px; opacity:0.7; }
+  .guide-card .g-confuse b{ color: var(--gold); font-weight:600; }
+
+  .medals{
+    max-width:560px; margin: 10px auto 0; padding: 0 14px;
+    display:grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+  }
+  .medal{
+    background: var(--card);
+    border-radius: 14px;
+    padding: 10px 4px 8px;
+    text-align:center;
+    border: 2px solid rgba(244,192,79,0.12);
+    position:relative;
+  }
+  .medal .m-emoji{ font-size: 1.7rem; filter: grayscale(1) brightness(0.5); display:block; }
+  .medal.unlocked .m-emoji{ filter:none; }
+  .medal.unlocked{ border-color: var(--gold); box-shadow: 0 0 14px rgba(244,192,79,0.35); }
+  .medal .m-name{ font-size:0.55rem; margin-top:4px; line-height:1.15; min-height:24px; display:flex; align-items:center; justify-content:center; opacity:0.85; }
+  .medal .m-need{ font-size:0.52rem; opacity:0.55; margin-top:2px; }
+  .medal.unlocked .m-need{ display:none; }
+
+  .medal-toast{
+    position:fixed; inset:0; pointer-events:none; z-index: 60;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .medal-toast .card{
+    background: var(--cream); color: var(--dusk); border-radius:18px;
+    padding: 22px 26px; text-align:center; box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    animation: medalPop 1.6s ease forwards;
+  }
+  .medal-toast .card .em{ font-size: 3rem; }
+  @keyframes medalPop{
+    0%{ transform: scale(0.5); opacity:0; }
+    15%{ transform: scale(1.08); opacity:1; }
+    25%{ transform: scale(1); }
+    85%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+
+  .reset-link{
+    display:block; text-align:center; margin: 30px auto 0; opacity:0.5; font-size:0.75rem;
+  }
+
+  .sync-pill{
+    position:fixed; top:10px; right:10px; font-size:0.65rem;
+    background: rgba(0,0,0,0.3); padding:4px 10px; border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sync-pill" id="syncPill">📡 offline</div>
+
+<header>
+  <h1>🦁 Caça ao Big Five</h1>
+  <p>Pilanesberg • Encontre os animais e ganhe pontos!</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tabHuntBtn">🎯 Caça</button>
+  <button class="tab-btn" id="tabGuideBtn">📖 Guia dos Animais</button>
+</div>
+
+<div id="viewHunt">
+<div class="stats">
+  <div class="stat"><div class="val" id="statPoints">0</div><div class="lbl">Pontos</div></div>
+  <div class="stat"><div class="val" id="statFound">0/0</div><div class="lbl">Encontrados</div></div>
+  <div class="stat"><div class="val" id="statLevel">1</div><div class="lbl">Nível</div></div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="progress-label" id="progressLabel">Vamos começar a aventura!</div>
+</div>
+
+<div class="section-title">🏅 Medalhas</div>
+<div class="medals" id="medalsRow"></div>
+
+<div class="section-title">🐾 Big Five</div>
+<div class="grid" id="gridBigFive"></div>
+
+<div class="section-title">🌿 Outros animais</div>
+<div class="grid" id="gridOthers"></div>
+
+<a class="reset-link" id="resetLink" href="#">Reiniciar progresso</a>
+</div>
+
+<div id="viewGuide" style="display:none">
+  <div class="guide-list" id="guideList"></div>
+</div>
+
+<!-- Modal de captura -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="emoji-big" id="modalEmoji">🦁</div>
+    <h2 id="modalName">Leão</h2>
+    <p class="desc" id="modalDesc">Você encontrou! Tire uma foto pra guardar essa lembrança.</p>
+    <img class="photo-preview" id="photoPreview">
+    <input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none">
+    <button class="btn btn-primary" id="btnTakePhoto">📸 Tirar foto</button>
+    <button class="btn btn-secondary" id="btnConfirm" style="display:none">✅ Confirmar e ganhar pontos</button>
+    <button class="btn-skip" id="btnSkip">Marcar sem foto</button>
+  </div>
+</div>
+
+<div class="celebrate" id="celebrate" style="display:none"></div>
+
+<script>
+const ANIMALS = [
+  {id:'leao', name:'Leão', emoji:'🦁', big5:true, pts:50},
+  {id:'elefante', name:'Elefante', emoji:'🐘', big5:true, pts:50},
+  {id:'rinoceronte', name:'Rinoceronte', emoji:'🦏', big5:true, pts:50},
+  {id:'bufalo', name:'Búfalo-do-cabo', emoji:'🐃', big5:true, pts:50},
+  {id:'leopardo', name:'Leopardo', emoji:'🐆', big5:true, pts:50},
+  {id:'girafa', name:'Girafa', emoji:'🦒', big5:false, pts:25},
+  {id:'zebra', name:'Zebra', emoji:'🦓', big5:false, pts:25},
+  {id:'hipopotamo', name:'Hipopótamo', emoji:'🦛', big5:false, pts:25},
+  {id:'hiena', name:'Hiena', emoji:'🐕', big5:false, pts:25},
+  {id:'kudu', name:'Cudu', emoji:'🦌', big5:false, pts:25},
+  {id:'impala', name:'Impala', emoji:'🐐', big5:false, pts:10},
+  {id:'gnu', name:'Gnu', emoji:'🐂', big5:false, pts:25},
+  {id:'javali', name:'Javali (Warthog)', emoji:'🐗', big5:false, pts:25},
+  {id:'avestruz', name:'Avestruz', emoji:'🦤', big5:false, pts:25},
+  {id:'aguia', name:'Águia-marcial', emoji:'🦅', big5:false, pts:25},
+  {id:'crocodilo', name:'Crocodilo', emoji:'🐊', big5:false, pts:25},
+  {id:'macaco', name:'Macaco-vervet', emoji:'🐒', big5:false, pts:10},
+  {id:'chacal', name:'Chacal', emoji:'🐺', big5:false, pts:25},
+  {id:'tartaruga', name:'Jabuti', emoji:'🐢', big5:false, pts:10},
+  {id:'avestruzinho', name:'Pintada (Guinea fowl)', emoji:'🦃', big5:false, pts:10},
+];
+
+const GUIDE_INFO = {
+  leao: { en:'Lion', feat:'Maior felino do safári. Macho tem juba grande; fêmeas caçam em grupo (matilha/"pride"). Costuma ficar deitado à sombra durante o dia.', confuse:'Não confundir com <b>leopardo</b> (menor, pintado, sozinho em árvores).' },
+  elefante: { en:'Elephant', feat:'O maior animal terrestre. Orelhas grandes, tromba longa, anda em grupos liderados por uma fêmea mais velha (matriarca).', confuse:'' },
+  rinoceronte: { en:'Rhino / Rhinoceros', feat:'Pele grossa e cinza, um ou dois chifres no focinho. No Pilanesberg pode ser de boca quadrada (pasto) ou boca pontuda (folhas).', confuse:'<b>Branco</b> (boca larga, pasta no chão) x <b>Negro</b> (boca em bico, come folhas).' },
+  bufalo: { en:'Cape Buffalo', feat:'Bovino preto/marrom escuro, chifres grossos e curvados em formato de "capacete". Anda em manadas grandes, considerado um dos mais perigosos.', confuse:'Não confundir com <b>gnu</b> (mais magro, chifres em forma de C).' },
+  leopardo: { en:'Leopard', feat:'Pelagem amarelo-dourada com manchas em forma de roseta. Muito discreto, costuma descansar em árvores. Difícil de ver!', confuse:'<b>Leopardo</b> = manchas tipo roseta e solitário. <b>Chita (cheetah)</b> = manchas sólidas, corpo fino — raro no Pilanesberg.' },
+  girafa: { en:'Giraffe', feat:'Pescoço enorme, manchas em formato de mosaico. O animal mais alto do mundo.', confuse:'' },
+  zebra: { en:'Zebra', feat:'Listras pretas e brancas únicas em cada indivíduo (como digital). Anda em grupos.', confuse:'' },
+  hipopotamo: { en:'Hippo / Hippopotamus', feat:'Corpo enorme e arredondado, geralmente só a cabeça aparece fora da água em lagoas e represas. Perigoso fora d\'água.', confuse:'' },
+  hiena: { en:'Spotted Hyena', feat:'Pelagem marrom-amarelada com manchas escuras, traseira mais baixa que a frente, anda meio "torta". Som de risada à noite.', confuse:'Não confundir com <b>chacal</b> (bem menor e mais fino, parece um cachorro pequeno).' },
+  kudu: { en:'Kudu (Greater Kudu)', feat:'Antílope grande, listras brancas verticais finas no corpo, machos têm chifres longos e espiralados.', confuse:'' },
+  impala: { en:'Impala', feat:'Antílope médio, marrom-avermelhado, listra preta em "M" na traseira. É o mais comum — vão ver muitos!', confuse:'Não confundir com <b>gnu</b> ou <b>kudu</b> (maiores e mais escuros).' },
+  gnu: { en:'Wildebeest', feat:'Cabeça grande tipo boi, corpo cinza, chifres em forma de C, juba escura. Anda em manadas, corre em zigue-zague quando assustado.', confuse:'Diferente do <b>búfalo</b>: gnu é mais magro e menor.' },
+  javali: { en:'Warthog', feat:'Porco selvagem com presas curvadas para cima, verrugas no rosto. Corre com o rabo em pé feito uma "antena".', confuse:'' },
+  avestruz: { en:'Ostrich', feat:'A maior ave do mundo, não voa, pescoço e pernas longas e rosadas. Macho é preto e branco, fêmea é marrom.', confuse:'' },
+  aguia: { en:'Martial Eagle', feat:'Águia grande, peito branco com pintas escuras, costuma ficar parada em árvores ou postes altos observando o chão.', confuse:'' },
+  crocodilo: { en:'Nile Crocodile', feat:'Fica parado nas margens dos rios e lagoas, às vezes só os olhos e o focinho aparecem na água.', confuse:'' },
+  macaco: { en:'Vervet Monkey', feat:'Macaco pequeno, pelagem acinzentada, rosto e mãos pretos. Costuma ficar perto de acampamentos e árvores.', confuse:'' },
+  chacal: { en:'Black-backed Jackal', feat:'Parece uma raposa/cachorro pequeno, com uma faixa preta nas costas. Costuma andar sozinho ou em par, principalmente ao amanhecer/anoitecer.', confuse:'Não confundir com <b>hiena</b> (bem maior).' },
+  tartaruga: { en:'Leopard Tortoise', feat:'Casco com padrão de manchas tipo leopardo, anda devagar pelo chão, perto de arbustos.', confuse:'' },
+  avestruzinho: { en:'Guinea Fowl', feat:'Ave pequena, corpo cinza-escuro com pintinhas brancas, cabeça pequena e azulada. Anda em bando fazendo bastante barulho.', confuse:'' },
+};
+
+const STORAGE_KEY = 'safariHunt_bento_v1';
+let state = loadState();
+let pendingAnimal = null;
+let pendingPhoto = null;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s.maxLevelSeen === undefined) s.maxLevelSeen = 1;
+      return s;
+    }
+  }catch(e){}
+  return { found: {}, maxLevelSeen: 1 };
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function totalPoints(){
+  return Object.keys(state.found).reduce((sum, id) => {
+    const a = ANIMALS.find(x=>x.id===id);
+    return sum + (a ? a.pts : 0);
+  }, 0);
+}
+function levelFor(points){
+  if(points >= 280) return 5;
+  if(points >= 200) return 4;
+  if(points >= 120) return 3;
+  if(points >= 50) return 2;
+  return 1;
+}
+const LEVELS = [
+  {lvl:1, min:0,   name:'Aprendiz de Ranger',     medal:'🥉'},
+  {lvl:2, min:50,  name:'Explorador',             medal:'🥈'},
+  {lvl:3, min:120, name:'Rastreador',             medal:'🥇'},
+  {lvl:4, min:200, name:'Guia de Safári',         medal:'🏆'},
+  {lvl:5, min:280, name:'Lenda do Pilanesberg',   medal:'👑'},
+];
+const LEVEL_NAMES = {1:'Aprendiz de Ranger', 2:'Explorador', 3:'Rastreador', 4:'Guia de Safári', 5:'Lenda do Pilanesberg'};
+
+function render(){
+  const big5 = ANIMALS.filter(a=>a.big5);
+  const others = ANIMALS.filter(a=>!a.big5);
+  document.getElementById('gridBigFive').innerHTML = big5.map(cardHtml).join('');
+  document.getElementById('gridOthers').innerHTML = others.map(cardHtml).join('');
+
+  const pts = totalPoints();
+  const foundCount = Object.keys(state.found).length;
+  const lvl = levelFor(pts);
+
+  document.getElementById('statPoints').textContent = pts;
+  document.getElementById('statFound').textContent = `${foundCount}/${ANIMALS.length}`;
+  document.getElementById('statLevel').textContent = lvl;
+
+  const pct = Math.round((foundCount/ANIMALS.length)*100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent =
+    foundCount === ANIMALS.length ? '🏆 Você completou a caça ao Big Five!!' :
+    `${LEVEL_NAMES[lvl]} • ${pct}% do safári explorado`;
+
+  document.querySelectorAll('.animal-card').forEach(card=>{
+    card.addEventListener('click', ()=> openAnimal(card.dataset.id));
+  });
+
+  renderMedals(pts, lvl);
+}
+
+function renderMedals(pts, currentLevel){
+  document.getElementById('medalsRow').innerHTML = LEVELS.map(l=>{
+    const unlocked = pts >= l.min;
+    return `
+      <div class="medal ${unlocked?'unlocked':''}">
+        <span class="m-emoji">${l.medal}</span>
+        <div class="m-name">${l.name}</div>
+        <div class="m-need">${l.min} pts</div>
+      </div>`;
+  }).join('');
+
+  if(currentLevel > state.maxLevelSeen){
+    const newLevelInfo = LEVELS.find(l=>l.lvl === currentLevel);
+    state.maxLevelSeen = currentLevel;
+    saveState();
+    if(newLevelInfo) showMedalToast(newLevelInfo);
+  }
+}
+
+function showMedalToast(levelInfo){
+  const el = document.createElement('div');
+  el.className = 'medal-toast';
+  el.innerHTML = `<div class="card"><div class="em">${levelInfo.medal}</div>
+    <div style="font-weight:700; margin-top:6px;">Nova medalha!</div>
+    <div style="font-size:0.85rem; opacity:0.8;">${levelInfo.name}</div></div>`;
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 1700);
+
+function cardHtml(a){
+  const found = !!state.found[a.id];
+  return `
+    <div class="animal-card ${found?'found':''}" data-id="${a.id}">
+      ${found ? '<span class="checkmark">✅</span>' : ''}
+      ${a.big5 ? '<span class="badge-bigfive">Big 5</span>' : ''}
+      <span class="emoji">${a.emoji}</span>
+      <div class="name">${a.name}</div>
+      <div class="pts">${found ? 'encontrado!' : a.pts+' pts'}</div>
+    </div>`;
+}
+
+function openAnimal(id){
+  const a = ANIMALS.find(x=>x.id===id);
+  if(!a) return;
+  if(state.found[id]){
+    // já encontrado - mostra foto se tiver
+    if(state.found[id].photo){
+      alert('Você já encontrou ' + a.name + '! Foto guardada 📸');
+    }
+    return;
+  }
+  pendingAnimal = a;
+  pendingPhoto = null;
+  document.getElementById('modalEmoji').textContent = a.emoji;
+  document.getElementById('modalName').textContent = a.name;
+  document.getElementById('modalDesc').textContent = `Encontrou um(a) ${a.name}! Vale ${a.pts} pontos${a.big5?' (Big Five!)':''}.`;
+  document.getElementById('photoPreview').classList.remove('show');
+  document.getElementById('btnConfirm').style.display = 'none';
+  document.getElementById('btnTakePhoto').style.display = 'block';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+document.getElementById('btnTakePhoto').addEventListener('click', ()=>{
+  document.getElementById('cameraInput').click();
+});
+
+document.getElementById('cameraInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    pendingPhoto = ev.target.result;
+    const img = document.getElementById('photoPreview');
+    img.src = pendingPhoto;
+    img.classList.add('show');
+    document.getElementById('btnTakePhoto').style.display='none';
+    document.getElementById('btnConfirm').style.display='block';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btnConfirm').addEventListener('click', confirmFound);
+document.getElementById('btnSkip').addEventListener('click', confirmFound);
+
+function confirmFound(){
+  if(!pendingAnimal) return;
+  state.found[pendingAnimal.id] = { photo: pendingPhoto, ts: Date.now() };
+  saveState();
+  document.getElementById('modalOverlay').classList.remove('show');
+  celebrate(pendingAnimal);
+  pendingAnimal = null;
+  pendingPhoto = null;
+  render();
+}
+
+function celebrate(a){
+  const el = document.getElementById('celebrate');
+  el.style.display = 'flex';
+  el.innerHTML = `<div class="burst">${a.emoji}✨</div>`;
+  setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 900);
+}
+
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'modalOverlay'){
+    document.getElementById('modalOverlay').classList.remove('show');
+    pendingAnimal = null; pendingPhoto = null;
+  }
+});
+
+document.getElementById('resetLink').addEventListener('click', (e)=>{
+  e.preventDefault();
+  if(confirm('Reiniciar todo o progresso da caça?')){
+    state = { found: {} };
+    saveState();
+    render();
+  }
+});
+
+function updateSyncPill(){
+  const pill = document.getElementById('syncPill');
+  pill.textContent = navigator.onLine ? '📶 online' : '📡 offline';
+}
+window.addEventListener('online', updateSyncPill);
+window.addEventListener('offline', updateSyncPill);
+updateSyncPill();
+
+// Register service worker for offline use
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+function renderGuide(){
+  document.getElementById('guideList').innerHTML = ANIMALS.map(a=>{
+    const g = GUIDE_INFO[a.id] || {};
+    return `
+      <div class="guide-card">
+        <div class="g-head">
+          <span class="g-emoji">${a.emoji}</span>
+          <div>
+            <div class="g-name-pt">${a.name} ${a.big5?'🏅':''}</div>
+            <div class="g-name-en">${g.en || ''}</div>
+          </div>
+        </div>
+        <div class="g-feat">${g.feat || ''}</div>
+        ${g.confuse ? `<div class="g-confuse">⚠️ ${g.confuse}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('tabHuntBtn').addEventListener('click', ()=>{
+  document.getElementById('viewHunt').style.display = 'block';
+  document.getElementById('viewGuide').style.display = 'none';
+  document.getElementById('tabHuntBtn').classList.add('active');
+  document.getElementById('tabGuideBtn').classList.remove('active');
+});
+document.getElementById('tabGuideBtn').addEventListener('click', ()=>{
+  document.getElementById('viewHunt').style.display = 'none';
+  document.getElementById('viewGuide').style.display = 'block';
+  document.getElementById('tabGuideBtn').classList.add('active');
+  document.getElementById('tabHuntBtn').classList.remove('active');
+});
+
+render();
+renderGuide();
+</script>
+</body>
+</html>
