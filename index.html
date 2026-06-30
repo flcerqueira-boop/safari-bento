@@ -148,6 +148,33 @@
     100%{ transform: scale(1.4); opacity:0; }
   }
 
+  .gallery-grid{
+    max-width: 560px; margin: 16px auto; padding: 0 16px;
+    display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  }
+  .gallery-item{
+    background: var(--card); border-radius: 16px; overflow:hidden;
+    border: 1px solid rgba(244,192,79,0.15); cursor:pointer;
+  }
+  .gallery-item img{ width:100%; height: 140px; object-fit:cover; display:block; }
+  .gallery-item .g-cap{
+    padding: 8px 10px; font-size:0.78rem; display:flex; align-items:center; gap:6px;
+  }
+  .gallery-empty{
+    text-align:center; opacity:0.7; font-size:0.85rem; max-width:300px; margin: 40px auto; line-height:1.5;
+  }
+  .lightbox{
+    position:fixed; inset:0; background: rgba(0,0,0,0.88); z-index: 70;
+    display:none; align-items:center; justify-content:center; flex-direction:column; padding:20px;
+  }
+  .lightbox.show{ display:flex; }
+  .lightbox img{ max-width:100%; max-height:70vh; border-radius:14px; }
+  .lightbox .lb-cap{ color: var(--cream); margin-top:14px; font-size:1rem; text-align:center; }
+  .lightbox .lb-close{
+    position:absolute; top:16px; right:16px; background: rgba(255,255,255,0.15);
+    border:none; color:white; width:36px; height:36px; border-radius:50%; font-size:1.1rem; cursor:pointer;
+  }
+
   .tabs{
     max-width: 480px; margin: 6px auto 0; padding: 0 20px;
     display:flex; gap:8px;
@@ -233,7 +260,8 @@
 
 <div class="tabs">
   <button class="tab-btn active" id="tabHuntBtn">🎯 Caça</button>
-  <button class="tab-btn" id="tabGuideBtn">📖 Guia dos Animais</button>
+  <button class="tab-btn" id="tabGuideBtn">📖 Guia</button>
+  <button class="tab-btn" id="tabGalleryBtn">📷 Galeria</button>
 </div>
 
 <div id="viewHunt">
@@ -264,6 +292,11 @@
   <div class="guide-list" id="guideList"></div>
 </div>
 
+<div id="viewGallery" style="display:none">
+  <div class="gallery-grid" id="galleryGrid"></div>
+  <p class="gallery-empty" id="galleryEmpty" style="display:none">Nenhuma foto ainda — saia pra caça e tire fotos dos animais que encontrar! 📸</p>
+</div>
+
 <!-- Modal de captura -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
@@ -279,6 +312,12 @@
 </div>
 
 <div class="celebrate" id="celebrate" style="display:none"></div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" id="lbClose">✕</button>
+  <img id="lbImg">
+  <div class="lb-cap" id="lbCap"></div>
+</div>
 
 <script>
 const ANIMALS = [
@@ -423,6 +462,7 @@ function showMedalToast(levelInfo){
     <div style="font-size:0.85rem; opacity:0.8;">${levelInfo.name}</div></div>`;
   document.body.appendChild(el);
   setTimeout(()=> el.remove(), 1700);
+}
 
 function cardHtml(a){
   const found = !!state.found[a.id];
@@ -546,18 +586,47 @@ function renderGuide(){
   }).join('');
 }
 
-document.getElementById('tabHuntBtn').addEventListener('click', ()=>{
-  document.getElementById('viewHunt').style.display = 'block';
-  document.getElementById('viewGuide').style.display = 'none';
-  document.getElementById('tabHuntBtn').classList.add('active');
-  document.getElementById('tabGuideBtn').classList.remove('active');
+function renderGallery(){
+  const withPhotos = ANIMALS
+    .filter(a => state.found[a.id] && state.found[a.id].photo)
+    .map(a => ({ a, entry: state.found[a.id] }));
+
+  document.getElementById('galleryEmpty').style.display = withPhotos.length ? 'none' : 'block';
+  document.getElementById('galleryGrid').innerHTML = withPhotos.map(({a, entry})=>`
+    <div class="gallery-item" data-id="${a.id}">
+      <img src="${entry.photo}">
+      <div class="g-cap">${a.emoji} ${a.name}</div>
+    </div>`).join('');
+
+  document.querySelectorAll('.gallery-item').forEach(item=>{
+    item.addEventListener('click', ()=>{
+      const a = ANIMALS_BY_ID[item.dataset.id];
+      const entry = state.found[a.id];
+      document.getElementById('lbImg').src = entry.photo;
+      document.getElementById('lbCap').textContent = `${a.emoji} ${a.name}`;
+      document.getElementById('lightbox').classList.add('show');
+    });
+  });
+}
+document.getElementById('lbClose').addEventListener('click', ()=>{
+  document.getElementById('lightbox').classList.remove('show');
 });
-document.getElementById('tabGuideBtn').addEventListener('click', ()=>{
-  document.getElementById('viewHunt').style.display = 'none';
-  document.getElementById('viewGuide').style.display = 'block';
-  document.getElementById('tabGuideBtn').classList.add('active');
-  document.getElementById('tabHuntBtn').classList.remove('active');
+document.getElementById('lightbox').addEventListener('click', (e)=>{
+  if(e.target.id === 'lightbox') document.getElementById('lightbox').classList.remove('show');
 });
+
+function setActiveTab(name){
+  document.getElementById('viewHunt').style.display = name==='hunt' ? 'block' : 'none';
+  document.getElementById('viewGuide').style.display = name==='guide' ? 'block' : 'none';
+  document.getElementById('viewGallery').style.display = name==='gallery' ? 'block' : 'none';
+  document.getElementById('tabHuntBtn').classList.toggle('active', name==='hunt');
+  document.getElementById('tabGuideBtn').classList.toggle('active', name==='guide');
+  document.getElementById('tabGalleryBtn').classList.toggle('active', name==='gallery');
+  if(name==='gallery') renderGallery();
+}
+document.getElementById('tabHuntBtn').addEventListener('click', ()=> setActiveTab('hunt'));
+document.getElementById('tabGuideBtn').addEventListener('click', ()=> setActiveTab('guide'));
+document.getElementById('tabGalleryBtn').addEventListener('click', ()=> setActiveTab('gallery'));
 
 render();
 renderGuide();
