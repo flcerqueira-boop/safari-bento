@@ -148,22 +148,6 @@
     100%{ transform: scale(1.4); opacity:0; }
   }
 
-  .sync-box{
-    max-width: 520px; margin: 16px auto; padding: 16px 18px;
-    background: var(--card); border-radius: 16px; border: 1px solid rgba(244,192,79,0.15);
-  }
-  .sync-box h3{ margin: 0 0 6px; font-size:1rem; }
-  .sync-hint{ font-size:0.78rem; opacity:0.75; margin: 0 0 10px; line-height:1.4; }
-  .sync-textarea{
-    width:100%; min-height: 70px; border-radius: 10px; border:none;
-    padding: 10px; font-size: 0.72rem; font-family: monospace;
-    background: rgba(0,0,0,0.25); color: var(--cream); resize: vertical;
-    margin-bottom: 8px;
-  }
-  .sync-msg{ font-size:0.8rem; margin-top:8px; min-height: 1em; }
-  .sync-msg.ok{ color: #8fd19e; }
-  .sync-msg.err{ color: #e09090; }
-
   .gallery-grid{
     max-width: 560px; margin: 16px auto; padding: 0 16px;
     display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
@@ -278,7 +262,6 @@
   <button class="tab-btn active" id="tabHuntBtn">🎯 Caça</button>
   <button class="tab-btn" id="tabGuideBtn">📖 Guia</button>
   <button class="tab-btn" id="tabGalleryBtn">📷 Galeria</button>
-  <button class="tab-btn" id="tabSyncBtn">🔄 Sincronizar</button>
 </div>
 
 <div id="viewHunt">
@@ -312,23 +295,6 @@
 <div id="viewGallery" style="display:none">
   <div class="gallery-grid" id="galleryGrid"></div>
   <p class="gallery-empty" id="galleryEmpty" style="display:none">Nenhuma foto ainda — saia pra caça e tire fotos dos animais que encontrar! 📸</p>
-</div>
-
-<div id="viewSync" style="display:none">
-  <div class="sync-box">
-    <h3>📤 Gerar código deste aparelho</h3>
-    <p class="sync-hint">Copie o código abaixo e cole no outro aparelho (WhatsApp, Notas, AirDrop... qualquer jeito de levar o texto até lá).</p>
-    <textarea id="syncOutput" class="sync-textarea" readonly></textarea>
-    <button class="btn btn-primary" id="btnCopySync">📋 Copiar código</button>
-  </div>
-
-  <div class="sync-box">
-    <h3>📥 Importar de outro aparelho</h3>
-    <p class="sync-hint">Cole aqui o código que veio do outro aparelho. Os animais marcados lá serão somados ao progresso daqui (sem perder nada).</p>
-    <textarea id="syncInput" class="sync-textarea" placeholder="Cole o código aqui..."></textarea>
-    <button class="btn btn-secondary" id="btnImportSync">⬇️ Importar e mesclar</button>
-    <div id="syncMsg" class="sync-msg"></div>
-  </div>
 </div>
 
 <!-- Modal de captura -->
@@ -446,7 +412,11 @@ function loadState(){
   return { found: {}, maxLevelSeen: 1 };
 }
 function saveState(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){
+    console.warn('Não foi possível salvar localmente (armazenamento cheio?)', e);
+  }
 }
 
 // ---------- Firebase cloud sync (Firestore only — no Storage, stays on free Spark plan) ----------
@@ -657,14 +627,22 @@ document.getElementById('btnTakePhoto').addEventListener('click', ()=>{
 document.getElementById('cameraInput').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   if(!file) return;
+  const img = document.getElementById('photoPreview');
+  const btnTake = document.getElementById('btnTakePhoto');
+  btnTake.textContent = '⏳ Processando foto...';
+  btnTake.disabled = true;
   const reader = new FileReader();
-  reader.onload = function(ev){
-    pendingPhoto = ev.target.result;
-    const img = document.getElementById('photoPreview');
-    img.src = pendingPhoto;
+  reader.onload = async function(ev){
+    const raw = ev.target.result;
+    // Compress right away — full-res camera photos can crash localStorage otherwise
+    const compressed = await compressImage(raw, 1000, 0.65);
+    pendingPhoto = compressed;
+    img.src = compressed;
     img.classList.add('show');
-    document.getElementById('btnTakePhoto').style.display='none';
-    document.getElementById('btnConfirm').style.display='block';
+    btnTake.style.display = 'none';
+    btnTake.disabled = false;
+    btnTake.textContent = '📸 Adicionar foto';
+    document.getElementById('btnConfirm').style.display = 'block';
   };
   reader.readAsDataURL(file);
 });
@@ -818,79 +796,18 @@ document.getElementById('lightbox').addEventListener('click', (e)=>{
   if(e.target.id === 'lightbox') document.getElementById('lightbox').classList.remove('show');
 });
 
-function buildSyncCode(){
-  // only sync ids + timestamps, never photos (too heavy for a manual code)
-  const compact = Object.keys(state.found).map(id => [id, state.found[id].ts || Date.now()]);
-  const json = JSON.stringify({ f: compact, m: state.maxLevelSeen || 1 });
-  return 'BF1-' + btoa(unescape(encodeURIComponent(json)));
-}
-
-function renderSync(){
-  document.getElementById('syncOutput').value = buildSyncCode();
-  document.getElementById('syncMsg').textContent = '';
-}
-
-document.getElementById('btnCopySync').addEventListener('click', async ()=>{
-  const ta = document.getElementById('syncOutput');
-  ta.select();
-  try{
-    await navigator.clipboard.writeText(ta.value);
-  }catch(e){
-    document.execCommand('copy');
-  }
-  const btn = document.getElementById('btnCopySync');
-  const original = btn.textContent;
-  btn.textContent = '✅ Copiado!';
-  setTimeout(()=> btn.textContent = original, 1500);
-});
-
-document.getElementById('btnImportSync').addEventListener('click', ()=>{
-  const raw = document.getElementById('syncInput').value.trim();
-  const msg = document.getElementById('syncMsg');
-  if(!raw){ msg.textContent = 'Cole um código primeiro.'; msg.className='sync-msg err'; return; }
-  try{
-    if(!raw.startsWith('BF1-')) throw new Error('formato');
-    const json = decodeURIComponent(escape(atob(raw.slice(4))));
-    const data = JSON.parse(json);
-    let added = 0;
-    (data.f || []).forEach(([id, ts])=>{
-      if(!ANIMALS_BY_ID[id]) return;
-      if(!state.found[id]){
-        state.found[id] = { photo: null, ts: ts || Date.now() };
-        added++;
-      }
-    });
-    if((data.m || 1) > (state.maxLevelSeen || 1)){
-      // don't retrigger old medal toasts, just sync the bar quietly
-      state.maxLevelSeen = data.m;
-    }
-    saveState();
-    render();
-    msg.textContent = added > 0 ? `✅ ${added} animal(is) novo(s) importado(s)!` : 'Já estava tudo sincronizado — nada novo pra importar.';
-    msg.className = 'sync-msg ok';
-    document.getElementById('syncInput').value = '';
-  }catch(e){
-    msg.textContent = '❌ Código inválido. Confira se copiou tudo certinho.';
-    msg.className = 'sync-msg err';
-  }
-});
-
 function setActiveTab(name){
   document.getElementById('viewHunt').style.display = name==='hunt' ? 'block' : 'none';
   document.getElementById('viewGuide').style.display = name==='guide' ? 'block' : 'none';
   document.getElementById('viewGallery').style.display = name==='gallery' ? 'block' : 'none';
-  document.getElementById('viewSync').style.display = name==='sync' ? 'block' : 'none';
   document.getElementById('tabHuntBtn').classList.toggle('active', name==='hunt');
   document.getElementById('tabGuideBtn').classList.toggle('active', name==='guide');
   document.getElementById('tabGalleryBtn').classList.toggle('active', name==='gallery');
-  document.getElementById('tabSyncBtn').classList.toggle('active', name==='sync');
   if(name==='gallery') renderGallery();
-  if(name==='sync') renderSync();
 }
 document.getElementById('tabHuntBtn').addEventListener('click', ()=> setActiveTab('hunt'));
 document.getElementById('tabGuideBtn').addEventListener('click', ()=> setActiveTab('guide'));
 document.getElementById('tabGalleryBtn').addEventListener('click', ()=> setActiveTab('gallery'));
-document.getElementById('tabSyncBtn').addEventListener('click', ()=> setActiveTab('sync'));
 
 render();
 renderGuide();
