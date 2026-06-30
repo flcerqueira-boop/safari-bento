@@ -243,6 +243,44 @@
     display:block; text-align:center; margin: 30px auto 0; opacity:0.5; font-size:0.75rem;
   }
 
+  .leaderboard{
+    max-width: 480px; margin: 6px auto 0; padding: 0 20px;
+    display:flex; gap: 10px; justify-content:center;
+  }
+  .lb-card{
+    flex:1; max-width: 160px; background: rgba(0,0,0,0.22); border-radius: 14px;
+    padding: 8px 10px; text-align:center; border: 2px solid transparent;
+  }
+  .lb-card.me{ border-color: var(--gold); background: rgba(244,192,79,0.12); }
+  .lb-card .lb-name{ font-size:0.72rem; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px; }
+  .lb-card .lb-pts{ font-size:1.1rem; font-weight:800; color: var(--gold); margin-top:2px; }
+  .lb-card .lb-crown{ font-size:0.65rem; }
+
+  .player-gate{
+    position:fixed; inset:0; z-index: 100;
+    background: linear-gradient(180deg, var(--sunset-1) 0%, var(--sunset-2) 35%, var(--dusk) 100%);
+    display:none; align-items:center; justify-content:center; padding: 24px;
+  }
+  .player-gate.show{ display:flex; }
+  .player-gate-inner{ text-align:center; max-width: 360px; }
+  .pg-emoji{ font-size: 2.6rem; margin-bottom: 10px; }
+  .player-gate-inner h2{ margin: 0 0 6px; font-size: 1.4rem; color: var(--cream); }
+  .player-gate-inner p{ margin: 0 0 24px; opacity:0.8; font-size:0.85rem; color: var(--cream); }
+  .player-options{ display:flex; gap: 14px; justify-content:center; }
+  .player-option{
+    background: var(--card); border: 2px solid rgba(244,192,79,0.25); border-radius: 18px;
+    padding: 22px 26px; font-size: 2.4rem; color: var(--cream); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .player-option span{ font-size: 0.85rem; font-weight:700; }
+  .player-option:active{ transform: scale(0.96); }
+
+  .player-badge{
+    position:fixed; top:10px; left:10px; z-index: 30;
+    font-size:0.75rem; background: rgba(0,0,0,0.3); color: var(--cream);
+    border:none; padding: 6px 12px; border-radius: 20px; cursor:pointer;
+  }
+
   .sync-pill{
     position:fixed; top:10px; right:10px; font-size:0.65rem;
     background: rgba(0,0,0,0.3); padding:4px 10px; border-radius: 20px;
@@ -251,12 +289,29 @@
 </head>
 <body>
 
+<div class="player-gate" id="playerGate">
+  <div class="player-gate-inner">
+    <div class="pg-emoji">🦒🌍🦁</div>
+    <h2>Quem está jogando?</h2>
+    <p>Cada um marca seus próprios animais e fotos</p>
+    <div class="player-options">
+      <button class="player-option" data-player="bento">🦓<span>Bento</span></button>
+      <button class="player-option" data-player="benicio">🦁<span>Benício</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="appShell" style="display:none">
+
 <div class="sync-pill" id="syncPill">📡 offline</div>
+<button class="player-badge" id="playerBadge" title="Trocar jogador"></button>
 
 <header>
   <h1>🦁 Caça ao Big Five</h1>
   <p>Pilanesberg • Encontre os animais e ganhe pontos!</p>
 </header>
+
+<div class="leaderboard" id="leaderboard"></div>
 
 <div class="tabs">
   <button class="tab-btn active" id="tabHuntBtn">🎯 Caça</button>
@@ -319,6 +374,8 @@
   <div class="lb-cap" id="lbCap"></div>
 </div>
 
+</div><!-- /appShell -->
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -344,8 +401,7 @@ try{
 }catch(e){
   db = initializeFirestore(fbApp, {});
 }
-const progressDocRef = doc(db, 'safariProgress', 'bento');
-const photosCollRef = collection(db, 'safariProgress', 'bento', 'photos');
+let progressDocRef, photosCollRef;
 
 const ANIMALS = [
   {id:'leao', name:'Leão', emoji:'🦁', big5:true, pts:50},
@@ -413,10 +469,19 @@ const GUIDE_INFO = {
   rhebok: { en:'Rhebok (Grey Rhebok)', feat:'Antílope pequeno e cinza-acastanhado, pelagem com aspecto "felpudo", chifres finos e retos (só nos machos). Vive em encostas rochosas e gramados, costuma fugir em saltos quando assustado.', confuse:'' },
 };
 
-const STORAGE_KEY = 'safariHunt_bento_v1';
+const PLAYERS = [
+  { id:'bento',   name:'Bento',   emoji:'🦓' },
+  { id:'benicio', name:'Benício', emoji:'🦁' },
+];
+const PLAYER_KEY = 'safariHunt_currentPlayer_v1';
+let currentPlayer = null;
+let STORAGE_KEY = '';
+let unsubProgress = null;
+let unsubPhotos = null;
+
 const ANIMALS_BY_ID = {};
 ANIMALS.forEach(a => ANIMALS_BY_ID[a.id] = a);
-let state = loadState();
+let state = { found: {}, maxLevelSeen: 1 };
 let pendingAnimal = null;
 let pendingPhoto = null;
 
@@ -498,18 +563,91 @@ function mergeRemotePhoto(id, dataUrl){
   }
 }
 
-onSnapshot(progressDocRef, (snap)=>{
-  if(snap.exists()) mergeRemoteFound(snap.data().found);
-}, ()=>{ /* ignore listen errors, app still works fully offline via localStorage */ });
+function attachListeners(){
+  if(unsubProgress) unsubProgress();
+  if(unsubPhotos) unsubPhotos();
+  unsubProgress = onSnapshot(progressDocRef, (snap)=>{
+    if(snap.exists()) mergeRemoteFound(snap.data().found);
+  }, ()=>{ /* ignore listen errors, app still works fully offline via localStorage */ });
 
-onSnapshot(photosCollRef, (qs)=>{
-  qs.docChanges().forEach(change=>{
-    if(change.type === 'added' || change.type === 'modified'){
-      const data = change.doc.data();
-      mergeRemotePhoto(change.doc.id, data.dataUrl);
+  unsubPhotos = onSnapshot(photosCollRef, (qs)=>{
+    qs.docChanges().forEach(change=>{
+      if(change.type === 'added' || change.type === 'modified'){
+        const data = change.doc.data();
+        mergeRemotePhoto(change.doc.id, data.dataUrl);
+      }
+    });
+  }, ()=>{ /* ignore listen errors */ });
+}
+
+// ---------- Leaderboard (compare both players, always listening regardless of who's active) ----------
+const leaderboardPoints = {}; // { playerId: totalPoints }
+PLAYERS.forEach(p=>{
+  const ref = doc(db, 'safariProgress', p.id);
+  onSnapshot(ref, (snap)=>{
+    let pts = 0;
+    if(snap.exists()){
+      const found = snap.data().found || {};
+      Object.keys(found).forEach(animalId=>{
+        const a = ANIMALS_BY_ID[animalId];
+        if(a) pts += a.pts;
+      });
     }
-  });
-}, ()=>{ /* ignore listen errors */ });
+    leaderboardPoints[p.id] = pts;
+    renderLeaderboard();
+  }, ()=>{ /* ignore */ });
+});
+
+function renderLeaderboard(){
+  const el = document.getElementById('leaderboard');
+  if(!el) return;
+  const vals = PLAYERS.map(p => leaderboardPoints[p.id] || 0);
+  const maxPts = Math.max(...vals);
+  el.innerHTML = PLAYERS.map(p=>{
+    const pts = leaderboardPoints[p.id] || 0;
+    const isMe = p.id === currentPlayer;
+    const isLeader = pts === maxPts && pts > 0 && vals.filter(v=>v===maxPts).length === 1;
+    return `
+      <div class="lb-card ${isMe ? 'me' : ''}">
+        <div class="lb-name">${p.emoji} ${p.name} ${isMe ? '(você)' : ''}</div>
+        <div class="lb-pts">${pts} ${isLeader ? '<span class="lb-crown">👑</span>' : ''}</div>
+      </div>`;
+  }).join('');
+}
+// -------------------------------------------------------------------------------------------------
+
+function selectPlayer(id){
+  currentPlayer = id;
+  localStorage.setItem(PLAYER_KEY, id);
+  STORAGE_KEY = 'safariHunt_' + id + '_v1';
+  progressDocRef = doc(db, 'safariProgress', id);
+  photosCollRef = collection(db, 'safariProgress', id, 'photos');
+  state = loadState();
+
+  const p = PLAYERS.find(pl => pl.id === id);
+  document.getElementById('playerBadge').textContent = `${p.emoji} ${p.name}`;
+  document.getElementById('playerGate').classList.remove('show');
+  document.getElementById('appShell').style.display = 'block';
+
+  attachListeners();
+  render();
+  renderGuide();
+  renderLeaderboard();
+}
+
+document.querySelectorAll('.player-option').forEach(btn=>{
+  btn.addEventListener('click', ()=> selectPlayer(btn.dataset.player));
+});
+document.getElementById('playerBadge').addEventListener('click', ()=>{
+  document.getElementById('playerGate').classList.add('show');
+});
+
+const savedPlayer = localStorage.getItem(PLAYER_KEY);
+if(savedPlayer && PLAYERS.some(p => p.id === savedPlayer)){
+  selectPlayer(savedPlayer);
+} else {
+  document.getElementById('playerGate').classList.add('show');
+}
 // ------------------------------------------------------------------------------------
 
 function totalPoints(){
@@ -828,9 +966,6 @@ function setActiveTab(name){
 document.getElementById('tabHuntBtn').addEventListener('click', ()=> setActiveTab('hunt'));
 document.getElementById('tabGuideBtn').addEventListener('click', ()=> setActiveTab('guide'));
 document.getElementById('tabGalleryBtn').addEventListener('click', ()=> setActiveTab('gallery'));
-
-render();
-renderGuide();
 </script>
 </body>
 </html>
